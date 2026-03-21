@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple^Math — AI Math Solver</title>
+  <meta name="description" content="Simple^Math: Understand math. Don't just solve it" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <!-- marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #000000;
+      --card-bg: rgba(255, 255, 255, 0.04);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f0f0f0;
+      --text-dim: rgba(255, 255, 255, 0.5);
+      --accent: #ffffff;
+      --accent-glow: rgba(255, 255, 255, 0.45);
+      --accent-hover: #ffffff;
+      --input-bg: rgba(255, 255, 255, 0.05);
+      --input-border: rgba(255, 255, 255, 0.1);
+      --input-focus: rgba(255, 255, 255, 0.35);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ── Floating Math Symbols ─────────────────────────────────── */
+    .math-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .math-symbol {
+      position: absolute;
+      font-family: 'Space Grotesk', sans-serif;
+      color: rgba(255, 255, 255, 0.04);
+      font-size: clamp(28px, 5vw, 72px);
+      font-weight: 600;
+      user-select: none;
+      will-change: transform;
+      animation: floatSymbol linear infinite;
+    }
+
+    @keyframes floatSymbol {
+      0%   { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+    }
+
+    /* ── Ambient Glow Orbs ─────────────────────────────────────── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+    }
+
+    .orb-1 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #ffffff, transparent 70%);
+      top: -100px; left: -100px;
+      animation: orbFloat1 18s ease-in-out infinite alternate;
+    }
+
+    .orb-2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #ffffff, transparent 70%);
+      bottom: -80px; right: -80px;
+      animation: orbFloat2 22s ease-in-out infinite alternate;
+    }
+
+    .orb-3 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, #ffffff, transparent 70%);
+      top: 50%; left: 60%;
+      animation: orbFloat3 15s ease-in-out infinite alternate;
+    }
+
+    @keyframes orbFloat1 {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(120px, 80px) scale(1.2); }
+    }
+    @keyframes orbFloat2 {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-100px, -60px) scale(1.15); }
+    }
+    @keyframes orbFloat3 {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-80px, 50px) scale(0.9); }
+    }
+
+    /* ── Grid Lines (Subtle) ──────────────────────────────────── */
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 80px 80px;
+    }
+
+    /* ── Main Card ─────────────────────────────────────────────── */
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1100px;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(40px) saturate(1.4);
+      -webkit-backdrop-filter: blur(40px) saturate(1.4);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 44px 36px 40px;
+      position: relative;
+      overflow: hidden;
+      animation: cardEnter 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+      transition: padding 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    }
+
+    @keyframes cardEnter {
+      from { opacity: 0; transform: translateY(30px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 200px;
+      overflow: hidden;
+      opacity: 1;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+
+    .logo-icon {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
+      filter: blur(6px);
+    }
+
+    .logo-icon svg {
+      position: relative;
+      z-index: 1;
+      width: 32px;
+      height: 32px;
+    }
+
+    .header h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 50%, #ffffff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header p {
+      color: var(--text-dim);
+      font-size: 0.875rem;
+      font-weight: 300;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Form Elements ─────────────────────────────────────────── */
+    .form-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .form-group label .badge {
+      font-size: 0.65rem;
+      padding: 2px 7px;
+      border-radius: 6px;
+      margin-left: 6px;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .badge-optional {
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .badge-required {
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 400;
+      outline: none;
+      transition: all var(--transition);
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="text"]::placeholder {
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    input[type="text"]:hover {
+      border-color: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.07);
+      transform: translateY(-1px);
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--input-focus);
+      background: rgba(255, 255, 255, 0.07);
+      transform: translateY(-1px);
+    }
+
+    /* ── Custom Dropdown ──────────────────────────────────────── */
+    .custom-select {
+      position: relative;
+      width: 100%;
+      user-select: none;
+    }
+
+    .custom-select-trigger {
+      width: 100%;
+      padding: 14px 40px 14px 16px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 400;
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .custom-select-trigger.placeholder {
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    .custom-select-trigger:hover {
+      border-color: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.07);
+      transform: translateY(-1px);
+    }
+
+    .custom-select.open .custom-select-trigger {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--input-focus);
+      background: rgba(255, 255, 255, 0.07);
+      transform: translateY(-1px);
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    /* Chevron icon */
+    .custom-select-trigger::after {
+      content: '';
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid var(--text-dim);
+      border-bottom: 2px solid var(--text-dim);
+      transform: translateY(-65%) rotate(45deg);
+      transition: all var(--transition);
+    }
+
+    .custom-select-trigger:hover::after {
+      border-color: var(--text);
+    }
+
+    .custom-select.open .custom-select-trigger::after {
+      transform: translateY(-25%) rotate(-135deg);
+      border-color: var(--accent);
+    }
+
+    /* Dropdown menu */
+    .custom-select-options {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: rgba(18, 18, 24, 0.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-top: none;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .custom-select.open .custom-select-options {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .custom-select-option {
+      padding: 12px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .custom-select-option::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0;
+      background: var(--accent);
+      transition: width 0.2s ease;
+    }
+
+    .custom-select-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding-left: 22px;
+    }
+
+    .custom-select-option:hover::before {
+      width: 3px;
+    }
+
+    .custom-select-option.selected {
+      color: var(--accent);
+      background: rgba(255, 255, 255, 0.08);
+      font-weight: 500;
+    }
+
+    .custom-select-option + .custom-select-option {
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* ── File Upload ───────────────────────────────────────────── */
+    .file-upload-area {
+      position: relative;
+      border: 1.5px dashed var(--input-border);
+      border-radius: var(--radius-sm);
+      padding: 28px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition);
+      background: transparent;
+    }
+
+    .file-upload-area:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateY(-1px);
+    }
+
+    .file-upload-area.has-file {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .file-upload-area input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-upload-icon {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+      display: block;
+      opacity: 0.5;
+      transition: opacity var(--transition);
+    }
+
+    .file-upload-area:hover .file-upload-icon {
+      opacity: 0.8;
+    }
+
+    .file-upload-text {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .file-upload-text strong {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .file-name {
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-top: 8px;
+      font-weight: 500;
+      display: none;
+    }
+
+    .file-name.visible {
+      display: block;
+    }
+
+    /* ── Solve Button ──────────────────────────────────────────── */
+    .btn-solve {
+      width: 100%;
+      padding: 16px 24px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+      color: #000;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all var(--transition);
+    }
+
+    .btn-solve::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .btn-solve:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow:
+        0 8px 30px var(--accent-glow),
+        0 0 60px rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-solve:hover:not(:disabled)::before {
+      opacity: 1;
+    }
+
+    .btn-solve:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-solve:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* ── Spinner ────────────────────────────────────────────────── */
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .spinner.visible { display: inline-block; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Result Box ────────────────────────────────────────────── */
+    .result-wrapper {
+      margin-top: 24px;
+      display: none;
+      animation: resultEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .result-wrapper.visible { display: block; }
+
+    @keyframes resultEnter {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .result-label::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+    }
+
+    .result-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.875rem;
+      line-height: 1.75;
+      color: rgba(255, 255, 255, 0.85);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .result-box::-webkit-scrollbar {
+      width: 4px;
+    }
+    .result-box::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .result-box::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    /* ── Rendered Math Content ─────────────────────────────────── */
+    .result-box h1, .result-box h2, .result-box h3, .result-box h4 {
+      font-family: 'Space Grotesk', sans-serif;
+      color: #f0f0f0;
+      margin: 16px 0 8px 0;
+      font-weight: 600;
+    }
+    .result-box h1 { font-size: 1.15rem; }
+    .result-box h2 { font-size: 1.05rem; }
+    .result-box h3 { font-size: 0.95rem; }
+    .result-box h4 { font-size: 0.9rem; color: rgba(255,255,255,0.7); }
+    .result-box p { margin: 6px 0; }
+    .result-box ul, .result-box ol {
+      margin: 6px 0 6px 20px;
+      padding: 0;
+    }
+    .result-box li { margin-bottom: 4px; }
+    .result-box strong { color: #ffffff; font-weight: 600; }
+    .result-box em { color: rgba(255,255,255,0.75); }
+    .result-box code {
+      background: rgba(255,255,255,0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+    .result-box pre {
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .result-box pre code {
+      background: none;
+      padding: 0;
+    }
+    .result-box .katex-display {
+      margin: 12px 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    .result-box .katex { color: #f0f0f0; }
+    .result-box hr {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      margin: 12px 0;
+    }
+    .result-box blockquote {
+      border-left: 3px solid rgba(255,255,255,0.2);
+      padding-left: 12px;
+      margin: 8px 0;
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* ── Error State ───────────────────────────────────────────── */
+    .error .result-label::before {
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+    }
+
+    .error .result-box {
+      border-color: rgba(239, 68, 68, 0.15);
+      color: rgba(239, 68, 68, 0.85);
+    }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.15);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .form-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .form-row .form-group {
+        margin-bottom: 20px;
+      }
+
+      .card {
+        padding: 32px 22px 28px;
+        border-radius: 20px;
+      }
+
+      .header h1 { font-size: 1.6rem; }
+
+      .container { padding: 14px; max-width: 100%; }
+    }
+
+    /* ── Collapsed State (after solution) ────────────────────── */
+    .card.collapsed {
+      padding: 16px 24px 20px;
+    }
+
+    .card.collapsed .header {
+      max-height: 0;
+      margin-bottom: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .card.collapsed .form-group label {
+      max-height: 0;
+      margin-bottom: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card.collapsed .form-row {
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    .card.collapsed input[type="text"] {
+      padding: 10px 14px;
+      font-size: 0.85rem;
+    }
+
+    .card.collapsed .custom-select-trigger {
+      padding: 10px 34px 10px 14px;
+      font-size: 0.85rem;
+    }
+
+    .card.collapsed .form-group:has(.file-upload-area) {
+      max-height: 0;
+      margin: 0;
+      opacity: 0;
+      overflow: hidden;
+      pointer-events: none;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card.collapsed .btn-solve {
+      padding: 10px 20px;
+      margin-top: 0;
+      font-size: 0.9rem;
+    }
+
+    .card.collapsed .result-wrapper {
+      margin-top: 16px;
+    }
+
+    .form-group label {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 40px;
+      overflow: hidden;
+    }
+
+    .form-group:has(.file-upload-area) {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 500px;
+    }
+
+    .btn-solve {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ── Compact attach button (collapsed mode) ─────────────── */
+    .btn-attach {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      min-width: 44px;
+      height: 44px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .btn-attach:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .btn-attach.has-file {
+      border-color: rgba(255, 255, 255, 0.4);
+      color: #fff;
+    }
+
+    .card.collapsed .btn-attach {
+      display: flex;
+    }
+
+    .collapsed-file-indicator {
+      display: none;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: -6px;
+      margin-bottom: 6px;
+      padding-left: 2px;
+    }
+
+    .card.collapsed .collapsed-file-indicator.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Background -->
+  <div class="math-bg" id="mathBg"></div>
+  <div class="grid-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- Main App -->
+  <div class="container">
+    <div class="card">
+
+      <!-- Header -->
+      <div class="header">
+        <div class="header-logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Square root symbol -->
+              <path d="M4 38L14 42L24 56L38 8H60" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <!-- x letter -->
+              <path d="M46 38L58 56M58 38L46 56" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h1>Simple^Math</h1>
+        </div>
+        <p>AI-powered step-by-step math solutions</p>
+      </div>
+
+      <!-- Form -->
+      <form id="solveForm" autocomplete="off">
+
+        <!-- Problem Input + Level (Horizontal Row) -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>Math Problem <span class="badge badge-optional">optional</span></label>
+            <input
+              type="text"
+              id="problemInput"
+              placeholder="e.g. Solve 2x + 5 = 13"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Student Level <span class="badge badge-required">required</span></label>
+            <input type="hidden" id="levelSelect" value="" />
+            <div class="custom-select" id="customSelect">
+              <div class="custom-select-trigger placeholder" id="selectTrigger">Select a level</div>
+              <div class="custom-select-options" id="selectOptions">
+                <div class="custom-select-option" data-value="Grade 9">Grade 9</div>
+                <div class="custom-select-option" data-value="Grade 10">Grade 10</div>
+                <div class="custom-select-option" data-value="Grade 11">Grade 11</div>
+                <div class="custom-select-option" data-value="Grade 12">Grade 12</div>
+                <div class="custom-select-option" data-value="Engineering">Engineering</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compact attach button (visible only in collapsed mode) -->
+          <button type="button" class="btn-attach" id="btnAttach" title="Attach image">📷</button>
+        </div>
+        <div class="collapsed-file-indicator" id="collapsedFileIndicator"></div>
+
+        <!-- File Upload -->
+        <div class="form-group">
+          <label>Upload Image <span class="badge badge-optional">optional</span></label>
+          <div class="file-upload-area" id="uploadArea">
+            <input type="file" id="fileInput" accept="image/*" />
+            <span class="file-upload-icon">📷</span>
+            <div class="file-upload-text">
+              <strong>Click to upload</strong> or drag &amp; drop<br />
+              PNG, JPG, WEBP
+            </div>
+            <div class="file-name" id="fileName"></div>
+          </div>
+        </div>
+
+        <!-- Solve Button -->
+        <button type="submit" class="btn-solve" id="solveBtn">
+          <span class="btn-content">
+            <span class="spinner" id="spinner"></span>
+            <span id="btnText">Solve</span>
+          </span>
+        </button>
+      </form>
+
+      <!-- Result -->
+      <div class="result-wrapper" id="resultWrapper">
+        <div class="result-label" id="resultLabel">Solution</div>
+        <div class="result-box" id="resultBox"></div>
+      </div>
+
+    </div>
+
+    <div class="footer">Powered by OpenAI &middot; Simple^Math</div>
+  </div>
+
+  <script>
+    // ── Floating Math Symbols ──────────────────────────────────
+    (() => {
+      const symbols = ['+', '−', '×', '÷', '=', '∑', '∫', 'π', '√', 'Δ', '∞', 'θ', 'λ', '∂'];
+      const container = document.getElementById('mathBg');
+
+      function createSymbol() {
+        const el = document.createElement('span');
+        el.className = 'math-symbol';
+        el.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+        el.style.left = Math.random() * 100 + '%';
+        el.style.fontSize = (Math.random() * 40 + 24) + 'px';
+        el.style.animationDuration = (Math.random() * 25 + 20) + 's';
+        el.style.animationDelay = (Math.random() * -30) + 's';
+        container.appendChild(el);
+
+        // Remove when animation ends to prevent buildup
+        el.addEventListener('animationend', () => {
+          el.remove();
+          createSymbol();
+        });
+      }
+
+      // Spawn initial batch
+      for (let i = 0; i < 18; i++) createSymbol();
+    })();
+
+    // ── DOM Elements ────────────────────────────────────────────
+    const form         = document.getElementById('solveForm');
+    const problemInput = document.getElementById('problemInput');
+    const levelSelect  = document.getElementById('levelSelect');
+    const fileInput    = document.getElementById('fileInput');
+    const uploadArea   = document.getElementById('uploadArea');
+    const fileNameEl   = document.getElementById('fileName');
+    const solveBtn     = document.getElementById('solveBtn');
+    const spinner      = document.getElementById('spinner');
+    const btnText      = document.getElementById('btnText');
+    const resultWrapper= document.getElementById('resultWrapper');
+    const resultLabel  = document.getElementById('resultLabel');
+    const resultBox    = document.getElementById('resultBox');
+
+    // ── Custom Dropdown ──────────────────────────────────────────
+    const customSelect  = document.getElementById('customSelect');
+    const selectTrigger = document.getElementById('selectTrigger');
+    const selectOptions = document.querySelectorAll('.custom-select-option');
+
+    selectTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      customSelect.classList.toggle('open');
+    });
+
+    selectOptions.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const value = opt.dataset.value;
+        levelSelect.value = value;
+        selectTrigger.textContent = value;
+        selectTrigger.classList.remove('placeholder');
+        selectOptions.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        customSelect.classList.remove('open');
+      });
+    });
+
+    document.addEventListener('click', () => {
+      customSelect.classList.remove('open');
+    });
+
+    // ── File Input Handling ──────────────────────────────────────
+    const btnAttach = document.getElementById('btnAttach');
+    const collapsedFileIndicator = document.getElementById('collapsedFileIndicator');
+
+    btnAttach.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        const name = fileInput.files[0].name;
+        fileNameEl.textContent = '📎 ' + name;
+        fileNameEl.classList.add('visible');
+        uploadArea.classList.add('has-file');
+        btnAttach.classList.add('has-file');
+        collapsedFileIndicator.textContent = '📎 ' + name;
+        collapsedFileIndicator.classList.add('visible');
+      } else {
+        fileNameEl.classList.remove('visible');
+        uploadArea.classList.remove('has-file');
+        btnAttach.classList.remove('has-file');
+        collapsedFileIndicator.textContent = '';
+        collapsedFileIndicator.classList.remove('visible');
+      }
+    });
+
+
+    // ── Form Submit ──────────────────────────────────────────────
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const problem = problemInput.value.trim();
+      const level   = levelSelect.value;
+      const file    = fileInput.files[0];
+
+      // Validation
+      if (!level) {
+        showError('Please select a student level.');
+        return;
+      }
+
+      if (!problem && !file) {
+        showError('Please enter a math problem or upload an image.');
+        return;
+      }
+
+      // Build FormData
+      const formData = new FormData();
+      if (problem) formData.append('problem', problem);
+      formData.append('level', level);
+      if (file) formData.append('file', file);
+
+      // UI → Loading state
+      setLoading(true);
+      resultWrapper.classList.remove('visible');
+      resultWrapper.classList.remove('error');
+
+      try {
+        const res = await fetch('http://127.0.0.1:8000/solve', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          showError(data.error);
+        } else {
+          showResult(data.solution || 'No solution returned.');
+          // Collapse the form
+          document.querySelector('.card').classList.add('collapsed');
+        }
+      } catch (err) {
+        showError('Could not connect to the server. Make sure the backend is running.');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function setLoading(on) {
+      solveBtn.disabled = on;
+      spinner.classList.toggle('visible', on);
+      btnText.textContent = on ? 'Solving…' : 'Solve';
+    }
+
+    function showResult(text) {
+      resultWrapper.classList.remove('error');
+      resultLabel.textContent = 'Solution';
+
+      // Protect math expressions from markdown parsing
+      const mathBlocks = [];
+      let processed = text;
+
+      // Protect display math: $$...$$ and \[...\]
+      processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (m) => {
+        mathBlocks.push(m);
+        return `MATHBLOCK${mathBlocks.length - 1}END`;
+      });
+      processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (m) => {
+        mathBlocks.push('$$' + m.slice(2, -2) + '$$');
+        return `MATHBLOCK${mathBlocks.length - 1}END`;
+      });
+
+      // Protect inline math: \(...\) and $...$
+      processed = processed.replace(/\\\((.*?)\\\)/g, (m) => {
+        mathBlocks.push('$' + m.slice(2, -2) + '$');
+        return `MATHBLOCK${mathBlocks.length - 1}END`;
+      });
+      processed = processed.replace(/(?<!\$)\$(?!\$)([^\$\n]+?)\$/g, (m) => {
+        mathBlocks.push(m);
+        return `MATHBLOCK${mathBlocks.length - 1}END`;
+      });
+
+      // Parse markdown
+      let html = marked.parse(processed);
+
+      // Restore math expressions
+      mathBlocks.forEach((block, i) => {
+        html = html.replaceAll(`MATHBLOCK${i}END`, block);
+      });
+
+      resultBox.innerHTML = html;
+
+      // Render LaTeX math expressions with KaTeX
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(resultBox, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false }
+          ],
+          throwOnError: false
+        });
+      }
+      resultWrapper.classList.add('visible');
+      // Re-trigger animation
+      resultWrapper.style.animation = 'none';
+      resultWrapper.offsetHeight; // force reflow
+      resultWrapper.style.animation = '';
+    }
+
+    function showError(text) {
+      resultWrapper.classList.add('error');
+      resultLabel.textContent = 'Error';
+      resultBox.textContent = text;
+      resultWrapper.classList.add('visible');
+      resultWrapper.style.animation = 'none';
+      resultWrapper.offsetHeight;
+      resultWrapper.style.animation = '';
+    }
+  </script>
+</body>
+</html>
