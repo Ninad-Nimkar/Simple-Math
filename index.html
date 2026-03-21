@@ -802,52 +802,61 @@
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* ── Compact attach button (collapsed mode) ─────────────── */
-    .btn-attach {
-      display: none;
+      /* ── New problem ────────────────────── */
+.newproblem{
+      width: 100%;
+      padding: 16px 24px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+      color: #000;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all var(--transition);
+    }
+
+    .newproblem::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .newproblem:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow:
+        0 8px 30px var(--accent-glow),
+        0 0 60px rgba(255, 255, 255, 0.2);
+    }
+
+    .newproblem:hover:not(:disabled)::before {
+      opacity: 1;
+    }
+
+    .newproblem:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .newproblem:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .newproblem-content {
+      display: flex;
       align-items: center;
       justify-content: center;
-      width: 44px;
-      min-width: 44px;
-      height: 44px;
-      background: var(--input-bg);
-      border: 1px solid var(--input-border);
-      border-radius: var(--radius-sm);
-      color: var(--text-dim);
-      font-size: 1.2rem;
-      cursor: pointer;
-      transition: all var(--transition);
-      position: relative;
+      gap: 10px;
     }
 
-    .btn-attach:hover {
-      border-color: rgba(255, 255, 255, 0.3);
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-      transform: translateY(-1px);
-    }
-
-    .btn-attach.has-file {
-      border-color: rgba(255, 255, 255, 0.4);
-      color: #fff;
-    }
-
-    .card.collapsed .btn-attach {
-      display: flex;
-    }
-
-    .collapsed-file-indicator {
-      display: none;
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      margin-top: -6px;
-      margin-bottom: 6px;
-      padding-left: 2px;
-    }
-
-    .card.collapsed .collapsed-file-indicator.visible {
-      display: block;
-    }
   </style>
 </head>
 <body>
@@ -907,11 +916,7 @@
               </div>
             </div>
           </div>
-
-          <!-- Compact attach button (visible only in collapsed mode) -->
-          <button type="button" class="btn-attach" id="btnAttach" title="Attach image">📷</button>
         </div>
-        <div class="collapsed-file-indicator" id="collapsedFileIndicator"></div>
 
         <!-- File Upload -->
         <div class="form-group">
@@ -941,6 +946,7 @@
         <div class="result-label" id="resultLabel">Solution</div>
         <div class="result-box" id="resultBox"></div>
       </div>
+      <button class="newproblem">New problem</button>
 
     </div>
 
@@ -1016,28 +1022,14 @@
     });
 
     // ── File Input Handling ──────────────────────────────────────
-    const btnAttach = document.getElementById('btnAttach');
-    const collapsedFileIndicator = document.getElementById('collapsedFileIndicator');
-
-    btnAttach.addEventListener('click', () => {
-      fileInput.click();
-    });
-
     fileInput.addEventListener('change', () => {
       if (fileInput.files.length > 0) {
-        const name = fileInput.files[0].name;
-        fileNameEl.textContent = '📎 ' + name;
+        fileNameEl.textContent = '📎 ' + fileInput.files[0].name;
         fileNameEl.classList.add('visible');
         uploadArea.classList.add('has-file');
-        btnAttach.classList.add('has-file');
-        collapsedFileIndicator.textContent = '📎 ' + name;
-        collapsedFileIndicator.classList.add('visible');
       } else {
         fileNameEl.classList.remove('visible');
         uploadArea.classList.remove('has-file');
-        btnAttach.classList.remove('has-file');
-        collapsedFileIndicator.textContent = '';
-        collapsedFileIndicator.classList.remove('visible');
       }
     });
 
@@ -1165,6 +1157,11 @@
       resultWrapper.offsetHeight;
       resultWrapper.style.animation = '';
     }
+
+    document.querySelector('.newproblem').addEventListener('click', () => {
+      location.reload();
+    });
+
   </script>
 </body>
 </html>
