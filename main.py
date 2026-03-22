@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
 import io
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -22,6 +24,12 @@ app.add_middleware(
 
 API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=API_KEY)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def read_index():
+    return FileResponse("static/index.html")
 
 @app.post("/solve")
 async def solve_math(problem: str = Form(None),
