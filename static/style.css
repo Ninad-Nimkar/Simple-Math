@@ -450,8 +450,11 @@
     .file-upload-area input[type="file"] {
       position: absolute;
       inset: 0;
+      width: 100%;
+      height: 100%;
       opacity: 0;
       cursor: pointer;
+      z-index: 10;
     }
 
     .file-upload-icon {
@@ -459,6 +462,7 @@
       margin-bottom: 8px;
       display: block;
       opacity: 0.5;
+      pointer-events: none;
       transition: opacity var(--transition);
     }
 
@@ -470,6 +474,7 @@
       font-size: 0.8rem;
       color: var(--text-dim);
       line-height: 1.5;
+      pointer-events: none;
     }
 
     .file-upload-text strong {
@@ -782,7 +787,7 @@
     }
 
     .card.collapsed input[type="text"] {
-      padding: 10px 40px 10px 14px;
+      padding: 10px 72px 10px 14px;
       font-size: 0.85rem;
     }
 

@@ -1,4 +1,4 @@
-// ── Floating 1th Symbols ──────────────────────────────────
+// ── Floating Math Symbols ──────────────────────────────────
     (() => {
       const symbols = ['+', '−', '×', '÷', '=', '∑', '∫', 'π', '√', 'Δ', '∞', 'θ', 'λ', '∂'];
       const container = document.getElementById('mathBg');
@@ -28,9 +28,20 @@
     const form         = document.getElementById('solveForm');
     const problemInput = document.getElementById('problemInput');
     const levelSelect  = document.getElementById('levelSelect');
-    const fileInput    = document.getElementById('fileInput');
+    
+    // File inputs & areas
     const uploadArea   = document.getElementById('uploadArea');
+    const cameraArea   = document.getElementById('cameraArea');
     const fileNameEl   = document.getElementById('fileName');
+    
+    // Core file inputs
+    const fileInputs = [
+      document.getElementById('fileInput'),
+      document.getElementById('cameraInput'),
+      document.getElementById('compactFileInput'),
+      document.getElementById('compactCameraInput')
+    ];
+
     const solveBtn     = document.getElementById('solveBtn');
     const spinner      = document.getElementById('spinner');
     const btnText      = document.getElementById('btnText');
@@ -66,35 +77,48 @@
     });
 
     // ── File Input Handling ──────────────────────────────────────
-    fileInput.addEventListener('change', () => {
-      const compactFN = document.getElementById('compactFileName');
-      const compactBtn = document.getElementById('compactUploadBtn');
+    function handleFileSelection(event) {
+      const activeInput = event.target;
+      const file = activeInput.files[0];
       
-      if (fileInput.files.length > 0) {
-        fileNameEl.textContent = '📎 ' + fileInput.files[0].name;
+      // Clear all other inputs so only one file is active at a time
+      fileInputs.forEach(input => {
+        if (input && input !== activeInput) {
+          input.value = '';
+        }
+      });
+      
+      const compactFN = document.getElementById('compactFileName');
+      const compactBtns = document.querySelectorAll('.compact-upload-btn');
+      
+      if (file) {
+        fileNameEl.textContent = '📎 ' + file.name;
         fileNameEl.classList.add('visible');
-        uploadArea.classList.add('has-file');
+        if (uploadArea) uploadArea.classList.add('has-file');
+        if (cameraArea) cameraArea.classList.add('has-file');
         
         if (compactFN) {
-          compactFN.textContent = '📎 ' + fileInput.files[0].name;
+          compactFN.textContent = '📎 ' + file.name;
           compactFN.classList.add('visible');
         }
-        if (compactBtn) {
-          compactBtn.classList.add('has-file');
-        }
+        compactBtns.forEach(btn => btn.classList.add('has-file'));
       } else {
         fileNameEl.classList.remove('visible');
-        uploadArea.classList.remove('has-file');
+        if (uploadArea) uploadArea.classList.remove('has-file');
+        if (cameraArea) cameraArea.classList.remove('has-file');
         
         if (compactFN) {
           compactFN.classList.remove('visible');
         }
-        if (compactBtn) {
-          compactBtn.classList.remove('has-file');
-        }
+        compactBtns.forEach(btn => btn.classList.remove('has-file'));
+      }
+    }
+
+    fileInputs.forEach(input => {
+      if (input) {
+        input.addEventListener('change', handleFileSelection);
       }
     });
-
 
     // ── Form Submit ──────────────────────────────────────────────
     form.addEventListener('submit', async (e) => {
@@ -102,7 +126,10 @@
 
       const problem = problemInput.value.trim();
       const level   = levelSelect.value;
-      const file    = fileInput.files[0];
+      
+      // Find the currently selected file across all 4 potential inputs
+      const activeFileInput = fileInputs.find(i => i && i.files.length > 0);
+      const file = activeFileInput ? activeFileInput.files[0] : null;
 
       // Validation
       if (!level) {
@@ -127,7 +154,7 @@
       resultWrapper.classList.remove('error');
 
       try {
-        const res = await fetch('http://127.0.0.1:8000/solve', {
+        const res = await fetch('/solve', {  // Use relative path for robustness!
           method: 'POST',
           body: formData,
         });
@@ -141,17 +168,18 @@
           // Collapse the form
           document.querySelector('.card').classList.add('collapsed');
           
-          // Clear inputs
+          // Clear inputs immediately
           problemInput.value = '';
-          fileInput.value = '';
+          fileInputs.forEach(input => { if (input) input.value = ''; });
           fileNameEl.textContent = '';
           fileNameEl.classList.remove('visible');
-          uploadArea.classList.remove('has-file');
+          
+          if (uploadArea) uploadArea.classList.remove('has-file');
+          if (cameraArea) cameraArea.classList.remove('has-file');
           
           const compactFN = document.getElementById('compactFileName');
           if (compactFN) compactFN.classList.remove('visible');
-          const compactBtn = document.getElementById('compactUploadBtn');
-          if (compactBtn) compactBtn.classList.remove('has-file');
+          document.querySelectorAll('.compact-upload-btn').forEach(btn => btn.classList.remove('has-file'));
         }
       } catch (err) {
         showError('Could not connect to the server. Make sure the backend is running.');
