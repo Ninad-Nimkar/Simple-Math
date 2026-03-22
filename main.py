@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
 import io
-from PIL import Image
+
 from openai import OpenAI
 from dotenv import load_dotenv
 import base64
