@@ -60,7 +60,7 @@ The system uses a multi-step AI pipeline:
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/simple-math.git
+git clone https://github.com/Ninad-Nimkar/Simple-Math.git
 cd simple-math
 ```
 
